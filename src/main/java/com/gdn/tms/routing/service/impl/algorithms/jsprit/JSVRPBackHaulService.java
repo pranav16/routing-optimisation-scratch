@@ -33,7 +33,10 @@ import com.graphhopper.jsprit.core.problem.vehicle.VehicleImpl;
 import com.graphhopper.jsprit.core.reporting.SolutionPrinter;
 import com.graphhopper.jsprit.core.util.Coordinate;
 import com.graphhopper.jsprit.core.util.Solutions;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.util.Pair;
+import org.jfree.chart.util.TextUtils;
+import org.joda.time.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -45,7 +48,7 @@ import java.util.stream.Collectors;
 
 @Service
 @ConditionalOnProperty(value="routing.algorithm", havingValue = "JSVRPBackHaul", matchIfMissing = true)
-public class JSVRPBackHaulService implements IVRPAssignment {
+public class JSVRPBackHaulService implements IVRPAssignment, ISimulationStrategyRun{
     @Autowired
     ISourceRouteDetailsGenerator awbDetailsGenerator;
     @Autowired
@@ -58,17 +61,40 @@ public class JSVRPBackHaulService implements IVRPAssignment {
     IAwbPrioritizer prioritizer;
     private static final Logger logger = Logger.getLogger(JSVRPBackHaulService.class.getName());
 
-
-
     public List<RoutingSolution> run(double lat, double lon, double radius, long maxLimit,
                                      List<VehicleInfo> vehicleInfos){
+        List<RoutingDetails> points = awbDetailsGenerator.getRouteDetails(lat, lon, radius, maxLimit);
+        return algorithm(points, vehicleInfos, "");
+    }
+
+    @Override
+    public List<RoutingSolution> simulate(String batchName, DateTime timeOfRun, List<RoutingDetails> detailsList, List<VehicleInfo> vehicleInfos) {
+        RoutingDetails hub = RoutingDetails.builder().identifier("HUB").lat(-6.152183).lon(106.637445)
+                .build();
+        ArrayList<RoutingDetails> points = new ArrayList<>();
+        points.add(hub);
+        for (RoutingDetails details: detailsList) {
+           DateTime sla = details.getSla();
+           DateTime etd = details.getEtd();
+           Minutes slaDiff = Minutes.minutesBetween(sla, timeOfRun);
+           Minutes etdDiff = Minutes.minutesBetween(etd, timeOfRun);
+           Minutes min = slaDiff.isGreaterThan(etdDiff) ? etdDiff : slaDiff;
+           details.setSlaInMins(Math.abs(min.getMinutes()));
+        }
+        points.addAll(detailsList);
+
+        return algorithm(points, vehicleInfos, "simulation/output/" + batchName + ".png");
+
+    }
+
+    private  List<RoutingSolution> algorithm(List<RoutingDetails> points, List<VehicleInfo> vehicleInfos, String solutionFilePath){
         List<VehicleImpl> vehicles = vehicleAdapter.buildVehiclesOnWeightAndCount(vehicleInfos);
         Map<Vehicle, Double> maxDistancePerVehicleMap = new HashMap<>();
         for (Vehicle vehicle: vehicles) {
             Map<String, Object> vehicleProperties = (Map<String, Object>)vehicle.getType().getUserData();
             maxDistancePerVehicleMap.put(vehicle, (Double) vehicleProperties.get("max_distance"));
         }
-        List<RoutingDetails> points = awbDetailsGenerator.getRouteDetails(lat, lon, radius, maxLimit);
+
         prioritizer.prioritize(points, Pair.create(1, 10));
         long[][] arcCost = costMatrixGenerator.generateCostMatrix(points);
         List <com.graphhopper.jsprit.core.problem.job.Service> services = new ArrayList<>();
@@ -115,13 +141,13 @@ public class JSVRPBackHaulService implements IVRPAssignment {
                 return arcCost[locationIndex][location1Index];
             }
         });
-       Map<String, Long> slaMap =  points.stream().collect(Collectors.toMap(RoutingDetails::getIdentifier, RoutingDetails::getSlaInMins));
-       vrpBuilder.setActivityCosts(new VehicleRoutingActivityCosts() {
+        Map<String, Long> slaMap =  points.stream().collect(Collectors.toMap(RoutingDetails::getIdentifier, RoutingDetails::getSlaInMins));
+        vrpBuilder.setActivityCosts(new VehicleRoutingActivityCosts() {
             @Override
             public double getActivityCost(TourActivity tourActivity, double v, Driver driver, Vehicle vehicle) {
                 if (tourActivity instanceof TourActivity.JobActivity) {
-                   String jobId = ((TourActivity.JobActivity) tourActivity).getJob().getId();
-                   return slaMap.get(jobId);
+                    String jobId = ((TourActivity.JobActivity) tourActivity).getJob().getId();
+                    return slaMap.get(jobId);
                 }
                 return 0;
             }
@@ -135,8 +161,10 @@ public class JSVRPBackHaulService implements IVRPAssignment {
         VehicleRoutingAlgorithm algorithm = createAlgorithmWithMaxDistanceConstraint(problem, maxDistancePerVehicleMap,  slaMap);
         Collection<VehicleRoutingProblemSolution> solutions = algorithm.searchSolutions();
         VehicleRoutingProblemSolution bestSolution = Solutions.bestOf(solutions);
-        SolutionPrinter.print(problem, bestSolution, SolutionPrinter.Print.VERBOSE);
-        new Plotter(problem, bestSolution).plot("solution.png", "solution");
+        if(StringUtils.isNotEmpty(solutionFilePath)){
+            SolutionPrinter.print(problem, bestSolution, SolutionPrinter.Print.VERBOSE);
+            new Plotter(problem, bestSolution).plot(solutionFilePath, solutionFilePath);
+        }
         return solutionAdapter.extractSolution(context, bestSolution);
     }
 
@@ -166,10 +194,9 @@ public class JSVRPBackHaulService implements IVRPAssignment {
         stateManager.addStateUpdater(new VehicleDependentTraveledDistance(vrp.getTransportCosts(), stateManager, distanceStateId, maxDistancePerVehicleMap.keySet()));
         MaxDistanceConstraint distanceConstraint = new MaxDistanceConstraint(stateManager, distanceStateId, vrp.getTransportCosts(), maxDistancePerVehicleMap);
         constraintManager.addConstraint(distanceConstraint, ConstraintManager.Priority.HIGH);
-
-//        SlaBreachConstraint slaBreachConstraint = new SlaBreachConstraint(stateManager, distanceStateId, vrp.getTransportCosts(), slaMap);
-//        constraintManager.addConstraint(slaBreachConstraint, ConstraintManager.Priority.HIGH);
         builder.setStateAndConstraintManager(stateManager, constraintManager);
         return builder.buildAlgorithm();
     }
+
+
 }

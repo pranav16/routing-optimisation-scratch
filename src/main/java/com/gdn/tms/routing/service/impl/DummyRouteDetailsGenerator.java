@@ -163,27 +163,28 @@ public class DummyRouteDetailsGenerator implements ISourceRouteDetailsGenerator 
                                 "\t\"dead_weight\": 0,\n" +
                                 "\t\"identifier\": \"HUB\"\n" +
                                 "}, {\n" +
-                                "\t\"lat\": -6.897927626807114,\n" +
-                                "\t\"lon\": 107.60850494856804,\n" +
+                                "\n" +
+                                "\t\"lat\": -6.8970183363049,\n" +
+                                "\t\"lon\": 107.63624536512651,\n" +
                                 "\t\"sla_in_mins\": 100,\n" +
-                                "\t\"volumetric_weight\": 50,\n" +
-                                "\t\"dead_weight\": 10,\n" +
+                                "\t\"volumetric_weight\": 100,\n" +
+                                "\t\"dead_weight\": 250,\n" +
                                 "\t\"identifier\": \"BLI1107238522893\"\n" +
                                 "}, {\n" +
                                 "\n" +
                                 "\t\"lat\": -6.8970183363049,\n" +
                                 "\t\"lon\": 107.63624536512651,\n" +
-                                "\t\"sla_in_mins\": 500,\n" +
-                                "\t\"volumetric_weight\": 50,\n" +
-                                "\t\"dead_weight\": 10,\n" +
+                                "\t\"sla_in_mins\": 100,\n" +
+                                "\t\"volumetric_weight\": 100,\n" +
+                                "\t\"dead_weight\": 250,\n" +
                                 "\t\"identifier\": \"BLI1107238522894\"\n" +
                                 "}, {\n" +
                                 "\n" +
                                 "\t\"lat\": -6.8970183363049,\n" +
                                 "\t\"lon\": 107.63624536512651,\n" +
-                                "\t\"sla_in_mins\": 10,\n" +
-                                "\t\"volumetric_weight\": 50,\n" +
-                                "\t\"dead_weight\": 10,\n" +
+                                "\t\"sla_in_mins\": 100,\n" +
+                                "\t\"volumetric_weight\": 100,\n" +
+                                "\t\"dead_weight\": 20,\n" +
                                 "\t\"identifier\": \"BLI1107238522895\"\n" +
                                 "}]", new TypeReference<ArrayList<RoutingDetails>>(){});
 
