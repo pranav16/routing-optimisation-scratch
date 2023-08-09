@@ -1,11 +1,11 @@
 package com.gdn.tms.routing.service.impl.algorithms.jsprit;
 
 import com.gdn.tms.routing.enums.JSpritDimensions;
+import com.gdn.tms.routing.pojo.LatLon;
 import com.gdn.tms.routing.pojo.RoutingDetails;
 import com.gdn.tms.routing.pojo.RoutingSolution;
 import com.gdn.tms.routing.pojo.VehicleInfo;
 import com.gdn.tms.routing.service.api.*;
-import com.gdn.tms.routing.service.impl.constraints.jsprit.SlaBreachConstraint;
 import com.gdn.tms.routing.service.impl.utils.jsprit.JSpritSolutionAdapter;
 import com.gdn.tms.routing.service.impl.utils.jsprit.JSpritVehicleAdapter;
 import com.graphhopper.jsprit.analysis.toolbox.*;
@@ -13,7 +13,6 @@ import com.graphhopper.jsprit.core.algorithm.VehicleRoutingAlgorithm;
 import com.graphhopper.jsprit.core.algorithm.box.Jsprit;
 import com.graphhopper.jsprit.core.algorithm.state.StateId;
 import com.graphhopper.jsprit.core.algorithm.state.StateManager;
-import com.graphhopper.jsprit.core.algorithm.state.StateUpdater;
 import com.graphhopper.jsprit.core.algorithm.state.VehicleDependentTraveledDistance;
 import com.graphhopper.jsprit.core.problem.Location;
 import com.graphhopper.jsprit.core.problem.VehicleRoutingProblem;
@@ -23,10 +22,6 @@ import com.graphhopper.jsprit.core.problem.cost.VehicleRoutingActivityCosts;
 import com.graphhopper.jsprit.core.problem.cost.VehicleRoutingTransportCosts;
 import com.graphhopper.jsprit.core.problem.driver.Driver;
 import com.graphhopper.jsprit.core.problem.solution.VehicleRoutingProblemSolution;
-import com.graphhopper.jsprit.core.problem.solution.route.RouteVisitor;
-import com.graphhopper.jsprit.core.problem.solution.route.VehicleRoute;
-import com.graphhopper.jsprit.core.problem.solution.route.activity.ActivityVisitor;
-import com.graphhopper.jsprit.core.problem.solution.route.activity.TimeWindow;
 import com.graphhopper.jsprit.core.problem.solution.route.activity.TourActivity;
 import com.graphhopper.jsprit.core.problem.vehicle.Vehicle;
 import com.graphhopper.jsprit.core.problem.vehicle.VehicleImpl;
@@ -48,7 +43,7 @@ import java.util.stream.Collectors;
 
 @Service
 @ConditionalOnProperty(value="routing.algorithm", havingValue = "JSVRPBackHaul", matchIfMissing = true)
-public class JSVRPBackHaulService implements IVRPAssignment, ISimulationStrategyRun{
+public class JSVRPBackHaulService extends AbstractSimulationStrategyRun implements IVRPAssignment{
     @Autowired
     ISourceRouteDetailsGenerator awbDetailsGenerator;
     @Autowired
@@ -68,26 +63,7 @@ public class JSVRPBackHaulService implements IVRPAssignment, ISimulationStrategy
     }
 
     @Override
-    public List<RoutingSolution> simulate(String batchName, DateTime timeOfRun, List<RoutingDetails> detailsList, List<VehicleInfo> vehicleInfos) {
-        RoutingDetails hub = RoutingDetails.builder().identifier("HUB").lat(-6.152183).lon(106.637445)
-                .build();
-        ArrayList<RoutingDetails> points = new ArrayList<>();
-        points.add(hub);
-        for (RoutingDetails details: detailsList) {
-           DateTime sla = details.getSla();
-           DateTime etd = details.getEtd();
-           Minutes slaDiff = Minutes.minutesBetween(sla, timeOfRun);
-           Minutes etdDiff = Minutes.minutesBetween(etd, timeOfRun);
-           Minutes min = slaDiff.isGreaterThan(etdDiff) ? etdDiff : slaDiff;
-           details.setSlaInMins(Math.abs(min.getMinutes()));
-        }
-        points.addAll(detailsList);
-
-        return algorithm(points, vehicleInfos, "simulation/output/" + batchName + ".png");
-
-    }
-
-    private  List<RoutingSolution> algorithm(List<RoutingDetails> points, List<VehicleInfo> vehicleInfos, String solutionFilePath){
+    public List<RoutingSolution> algorithm(List<RoutingDetails> points, List<VehicleInfo> vehicleInfos, String solutionFilePath){
         List<VehicleImpl> vehicles = vehicleAdapter.buildVehiclesOnWeightAndCount(vehicleInfos);
         Map<Vehicle, Double> maxDistancePerVehicleMap = new HashMap<>();
         for (Vehicle vehicle: vehicles) {
@@ -197,6 +173,4 @@ public class JSVRPBackHaulService implements IVRPAssignment, ISimulationStrategy
         builder.setStateAndConstraintManager(stateManager, constraintManager);
         return builder.buildAlgorithm();
     }
-
-
 }

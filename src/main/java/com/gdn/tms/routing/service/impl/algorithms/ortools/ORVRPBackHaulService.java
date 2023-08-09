@@ -1,13 +1,11 @@
 package com.gdn.tms.routing.service.impl.algorithms.ortools;
 
-import com.gdn.tms.routing.pojo.ORRoutingContext;
-import com.gdn.tms.routing.pojo.RoutingDetails;
-import com.gdn.tms.routing.pojo.RoutingSolution;
-import com.gdn.tms.routing.pojo.VehicleInfo;
+import com.gdn.tms.routing.pojo.*;
 import com.gdn.tms.routing.service.api.*;
 import com.gdn.tms.routing.service.impl.utils.ortools.ORSolutionAdapter;
 import com.google.ortools.constraintsolver.*;
 import com.google.protobuf.Duration;
+import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -21,7 +19,7 @@ import java.util.logging.Logger;
 
 @Service
 @ConditionalOnProperty(value="routing.algorithm", havingValue = "ORVRPBackHaul", matchIfMissing = true)
-public class ORVRPBackHaulService implements IVRPAssignment {
+public class ORVRPBackHaulService extends AbstractSimulationStrategyRun implements IVRPAssignment{
     @Autowired
     ISourceRouteDetailsGenerator awbDetailsGenerator;
     @Autowired
@@ -40,12 +38,17 @@ public class ORVRPBackHaulService implements IVRPAssignment {
                                      List<VehicleInfo> vehicleInfos){
 
        List<RoutingDetails> points = awbDetailsGenerator.getRouteDetails(lat, lon, radius, maxLimit);
-       long[][] arcCost = costMatrixGenerator.generateCostMatrix(points);
-       for (int i = 1; i < points.size(); i++) {
+        return algorithm(points, vehicleInfos, null);
+    }
+
+    @Override
+    public List<RoutingSolution> algorithm(List<RoutingDetails> points, List<VehicleInfo> vehicleInfos, String solutionFilePath){
+        long[][] arcCost = costMatrixGenerator.generateCostMatrix(points);
+        for (int i = 1; i < points.size(); i++) {
             points.get(i).setDistanceFromDepot(arcCost[0][i]);
         }
 
-       RoutingIndexManager manager =
+        RoutingIndexManager manager =
                 new RoutingIndexManager(arcCost.length, vehicleInfos.size(), 0);
         // Create Routing Model.
         RoutingModel routing = new RoutingModel(manager);

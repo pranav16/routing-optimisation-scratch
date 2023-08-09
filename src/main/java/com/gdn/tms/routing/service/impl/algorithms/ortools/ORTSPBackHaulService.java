@@ -39,11 +39,45 @@ public class ORTSPBackHaulService implements ITSPAssignment {
 
     public RoutingSolution run(double lat, double lon, double radius, long maxLimit, VehicleInfo vehicleInfo){
        List<RoutingDetails> points = awbDetailsGenerator.getRouteDetails(lat, lon, radius, maxLimit);
-       long[][] arcCost = costMatrixGenerator.generateCostMatrix(points);
+       List<VehicleInfo> vehicleInfos = new ArrayList<>();
+       vehicleInfos.add(vehicleInfo);
+       List<RoutingSolution> solutionList = algorithm(points, vehicleInfos, null);
+       if(solutionList.isEmpty())
+           return null;
+       return solutionList.get(0);
+    }
+
+    public RoutingSolution extractSolution(RoutingModel routing,RoutingIndexManager manager, Assignment solution,
+                                           Long[] volumetricWeights, List<RoutingDetails> details){
+        final int vehicleId = 0;
+        RoutingSolution routingSolution = RoutingSolution.builder().build();
+        List<RoutingDetails> route = new ArrayList<>();
+        long index = routing.start(vehicleId);
+        long routeDistance = 0;
+        long routeLoad = 0;
+        routingSolution.setStart(details.get(manager.indexToNode(index)));
+        while (!routing.isEnd(index)) {
+            long nodeIndex = manager.indexToNode(index);
+            routeLoad += volumetricWeights[(int) nodeIndex];
+            route.add(details.get((int) nodeIndex));
+            long previousIndex = index;
+            index = solution.value(routing.nextVar(index));
+            routeDistance += routing.getArcCostForVehicle(previousIndex, index, vehicleId);
+        }
+        route.add(details.get(manager.indexToNode(routing.end(vehicleId))));
+        routingSolution.setRoute(route);
+        routingSolution.setTotalDistance(routeDistance);
+        routingSolution.setTotalWeight(routeLoad);
+        return routingSolution;
+    }
+
+    @Override
+    public List<RoutingSolution> algorithm(List<RoutingDetails> points, List<VehicleInfo> vehicleInfos, String solutionFilePath){
+        long[][] arcCost = costMatrixGenerator.generateCostMatrix(points);
         for (int i = 1; i < points.size(); i++) {
             points.get(i).setDistanceFromDepot(arcCost[0][i]);
         }
-       RoutingIndexManager manager =
+        RoutingIndexManager manager =
                 new RoutingIndexManager(arcCost.length, 1, 0);
 
         // Create Routing Model.
@@ -58,9 +92,6 @@ public class ORTSPBackHaulService implements ITSPAssignment {
                 });
 
         routing.setArcCostEvaluatorOfAllVehicles(transitCallbackIndex);
-
-        List<VehicleInfo> vehicleInfos = new ArrayList<>();
-        vehicleInfos.add(vehicleInfo);
 
         ORRoutingContext ORRoutingContext = new ORRoutingContext(routing, manager, transitCallbackIndex,
                 points, vehicleInfos, null);
@@ -86,38 +117,12 @@ public class ORTSPBackHaulService implements ITSPAssignment {
         RoutingSolution routingSolution = RoutingSolution.builder().build();
         // Solve the problem.
         Assignment solution = routing.solveWithParameters(searchParameters);
+        List<RoutingSolution> solutionList = new ArrayList<>();
         if(Objects.nonNull(solution)){
-           List<RoutingSolution> solutionList = solutionAdapter.extractSolution(ORRoutingContext, solution);
-           solutionAdapter.logSolution(routingSolution);
-           if(!solutionList.isEmpty()){
-               routingSolution = solutionList.get(0);
-           }
+            solutionList.addAll(solutionAdapter.extractSolution(ORRoutingContext, solution));
+            solutionAdapter.logSolution(routingSolution);
         }
-        return routingSolution;
-    }
-
-    public RoutingSolution extractSolution(RoutingModel routing,RoutingIndexManager manager, Assignment solution,
-                                           Long[] volumetricWeights, List<RoutingDetails> details){
-        final int vehicleId = 0;
-        RoutingSolution routingSolution = RoutingSolution.builder().build();
-        List<RoutingDetails> route = new ArrayList<>();
-        long index = routing.start(vehicleId);
-        long routeDistance = 0;
-        long routeLoad = 0;
-        routingSolution.setStart(details.get(manager.indexToNode(index)));
-        while (!routing.isEnd(index)) {
-            long nodeIndex = manager.indexToNode(index);
-            routeLoad += volumetricWeights[(int) nodeIndex];
-            route.add(details.get((int) nodeIndex));
-            long previousIndex = index;
-            index = solution.value(routing.nextVar(index));
-            routeDistance += routing.getArcCostForVehicle(previousIndex, index, vehicleId);
-        }
-        route.add(details.get(manager.indexToNode(routing.end(vehicleId))));
-        routingSolution.setRoute(route);
-        routingSolution.setTotalDistance(routeDistance);
-        routingSolution.setTotalWeight(routeLoad);
-        return routingSolution;
+        return solutionList;
     }
 
     public void logSolution(RoutingSolution solution){

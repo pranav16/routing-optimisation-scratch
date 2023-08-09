@@ -33,16 +33,23 @@ public class ORVRPMultiPickDeliveriesService implements IVRPAssignment{
     Long searchDuration;
     private static final Logger logger = Logger.getLogger(ORVRPMultiPickDeliveriesService.class.getName());
 
+    MultiPickUpDeliveryDetails multiPickUpDeliveryDetails;
     public List<RoutingSolution> run(double lat, double lon, double radius, long maxLimit,
                                      List<VehicleInfo> vehicleInfos){
-       MultiPickUpDeliveryDetails multiPickUpDeliveryDetails = awbDetailsGenerator.
+       multiPickUpDeliveryDetails = awbDetailsGenerator.
                getMultiPickUpDeliveryDetails(lat, lon, radius, maxLimit);
        List<RoutingDetails> points = multiPickUpDeliveryDetails.getRoutingDetails();
-       long[][] arcCost = costMatrixGenerator.generateCostMatrix(points);
-       for (int i = 1; i < points.size(); i++) {
+       return algorithm(points, vehicleInfos, null);
+
+    }
+
+    @Override
+    public List<RoutingSolution> algorithm(List<RoutingDetails> points, List<VehicleInfo> vehicleInfos, String solutionFilePath) {
+        long[][] arcCost = costMatrixGenerator.generateCostMatrix(points);
+        for (int i = 1; i < points.size(); i++) {
             points.get(i).setDistanceFromDepot(arcCost[0][i]);
         }
-       RoutingIndexManager manager =
+        RoutingIndexManager manager =
                 new RoutingIndexManager(arcCost.length, vehicleInfos.size(), 0);
 
         // Create Routing Model.
@@ -63,7 +70,7 @@ public class ORVRPMultiPickDeliveriesService implements IVRPAssignment{
 
         // add all constraints
         for (IConstraint constraint: constraints) {
-          constraint.addConstraint(orRoutingContext);
+            constraint.addConstraint(orRoutingContext);
         }
 
         // Add penalty for each node

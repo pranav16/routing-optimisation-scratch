@@ -20,9 +20,10 @@ public class CapacityConstraint implements IConstraint {
                 .map(awbDetails -> awbDetails.getVolumetricWeight()).toArray(Long[]::new);
         final int demandCallbackIndex = context.getRoutingModel().registerUnaryTransitCallback((long fromIndex) -> {
             int fromNode = context.getManager().indexToNode(fromIndex);
+            logger.info("node: "+fromNode);
             return volumetricWeights[fromNode];
         });
-
+        volumetricWeights[19]++;
         //add the dimension
         long[] vehicleCapacities = context.getVehicleInfos().stream()
                 .map(vehicleInfo -> vehicleInfo.getVehicleType().getCapacity()).collect(Collectors.toList())
