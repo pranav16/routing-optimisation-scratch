@@ -2,10 +2,10 @@ package com.gdn.tms.routing;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gdn.tms.routing.pojo.CourierShiftInfo;
 import com.gdn.tms.routing.pojo.LatLon;
-import com.gdn.tms.routing.service.simulation.Batch;
-import com.gdn.tms.routing.service.simulation.CSVRouteReader;
-import com.gdn.tms.routing.service.simulation.Simulation;
+import com.gdn.tms.routing.service.ISimulationRunner;
+import com.gdn.tms.routing.service.simulation.*;
 import com.google.ortools.Loader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +15,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -33,9 +35,11 @@ public class RoutingApplication implements CommandLineRunner {
 	@Autowired
 	ObjectMapper mapper;
 	@Autowired
-	Simulation simulation;
-
-
+	ISimulationRunner simulation;
+	@Value("${simulation.batch.filepath}")
+	private String batchFilePath;
+	@Value("${simulation.shifts.filepath}")
+	private String shiftFilePath;
 	List<Batch> getBatches(String fileName){
 		List<Batch> batches = null;
 		try{
@@ -45,6 +49,16 @@ public class RoutingApplication implements CommandLineRunner {
 		}
       return batches;
 	}
+
+	CourierShiftInfo getShiftInfo(String fileName){
+		CourierShiftInfo shiftInfo = null;
+		try{
+			shiftInfo = mapper.readValue(new File(fileName), CourierShiftInfo.class);
+		}catch (Exception ex){
+			logger.info(ex.getMessage());
+		}
+		return shiftInfo;
+	}
 	private static final Logger logger = Logger.getLogger(CSVRouteReader.class.getName());
 	@Override
 	public void run(String... args) {
@@ -52,9 +66,10 @@ public class RoutingApplication implements CommandLineRunner {
 //		logger.info("time zone: " + TimeZone.getDefault());
 //		TimeZone.setDefault(TimeZone.getTimeZone("GMT"));
 //		logger.info("time zone: " + TimeZone.getDefault());
-		System.setProperty("java.awt.headless", "false");
-		List<Batch> batches = getBatches("simulation/sale/bandung25/batches.json");
-		simulation.run(batches, new LatLon(-6.935987, 107.642309));
-
+		//System.setProperty("java.awt.headless", "false");
+		List<Batch> batches = getBatches(batchFilePath);
+		CourierShiftInfo shiftInfo = getShiftInfo(shiftFilePath);
+		simulation.run(shiftInfo, batches, new LatLon(-6.152183, 106.637445));
+		//courierShiftSimulation.run(shiftInfo, batches, new LatLon(-6.152183, 106.637445));
 	}
 }

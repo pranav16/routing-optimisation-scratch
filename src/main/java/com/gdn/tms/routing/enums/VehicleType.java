@@ -5,7 +5,7 @@ import lombok.Getter;
 
 // All values in SI units, expect for velocity which is in meters per min.
 public enum VehicleType {
-    BIKE(150, 1L, 333, 50000, 100),
+    BIKE(150, 7L, 333, 50000, 100),
     CAR(500,1L, 200, Integer.MAX_VALUE, 100),
     TRUCK(1000L, 100L, 2,50000, 20);
     VehicleType(long capacity, long packageCount, double maxVelocity, double maxDistance, int deadWeight){

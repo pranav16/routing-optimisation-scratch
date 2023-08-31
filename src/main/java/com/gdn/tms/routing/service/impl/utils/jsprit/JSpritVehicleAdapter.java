@@ -18,28 +18,25 @@ import java.util.Map;
 public class JSpritVehicleAdapter {
 
     final int WEIGHT_INDEX = 0;
-    public List<VehicleImpl> buildVehiclesOnWeightAndCount(List<VehicleInfo> infoList){
+    public List<VehicleImpl> buildVehiclesOnWeightAndCount(List<VehicleInfo> infoList, Map<String, Integer> packageCount){
         List<VehicleImpl> result = new ArrayList<>();
-        Map<com.gdn.tms.routing.enums.VehicleType, VehicleType> types = new HashMap<>();
-        for (com.gdn.tms.routing.enums.VehicleType type : com.gdn.tms.routing.enums.VehicleType.values()) {
+        Location.Builder locationBuilder = Location.Builder.newInstance();
+        for (VehicleInfo info: infoList) {
+            com.gdn.tms.routing.enums.VehicleType type = info.getVehicleType();
+            int capacity = Math.min(packageCount.getOrDefault(info.getIdentifier(), (int)type.getPackageCount()), (int)type.getPackageCount());
             VehicleTypeImpl.Builder vehicleTypeBuilder = VehicleTypeImpl.Builder.newInstance(type.name())
                     .addCapacityDimension(JSpritDimensions.WEIGHT_CAPACITY.getIndex(), (int)type.getCapacity())
-                    .addCapacityDimension(JSpritDimensions.PACKAGE_COUNT.getIndex(), (int)type.getPackageCount())
+                    .addCapacityDimension(JSpritDimensions.PACKAGE_COUNT.getIndex(), capacity)
                     .addCapacityDimension(JSpritDimensions.DEAD_WEIGHT_CAPACITY.getIndex(), (int)type.getDeadWeight())
                     .setMaxVelocity(type.getMaxVelocity());
-
             Map<String, Object> userProperties = new HashMap<>();
             userProperties.put("max_distance", type.getMaxDistance());
             vehicleTypeBuilder.setUserData(userProperties);
-            types.put(type, vehicleTypeBuilder.build());
-        }
-        Location.Builder locationBuilder = Location.Builder.newInstance();
-        for (VehicleInfo info: infoList) {
             VehicleImpl.Builder vehicleBuilder = VehicleImpl.Builder.newInstance(info.getIdentifier());
             locationBuilder.setCoordinate(Coordinate.newInstance(info.getLatLon().getLat(), info.getLatLon().getLon()));
             locationBuilder.setId("0");
             vehicleBuilder.setStartLocation(locationBuilder.build());
-            vehicleBuilder.setType(types.get(info.getVehicleType()));
+            vehicleBuilder.setType(vehicleTypeBuilder.build());
             vehicleBuilder.setReturnToDepot(true);
             result.add(vehicleBuilder.build());
         }

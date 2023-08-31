@@ -13,9 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.logging.Logger;
 
 
@@ -41,7 +39,7 @@ public class ORTSPBackHaulService implements ITSPAssignment {
        List<RoutingDetails> points = awbDetailsGenerator.getRouteDetails(lat, lon, radius, maxLimit);
        List<VehicleInfo> vehicleInfos = new ArrayList<>();
        vehicleInfos.add(vehicleInfo);
-       List<RoutingSolution> solutionList = algorithm(points, vehicleInfos, null);
+       List<RoutingSolution> solutionList = algorithm(points, vehicleInfos, null, new HashMap<>());
        if(solutionList.isEmpty())
            return null;
        return solutionList.get(0);
@@ -72,7 +70,8 @@ public class ORTSPBackHaulService implements ITSPAssignment {
     }
 
     @Override
-    public List<RoutingSolution> algorithm(List<RoutingDetails> points, List<VehicleInfo> vehicleInfos, String solutionFilePath){
+    public List<RoutingSolution> algorithm(List<RoutingDetails> points, List<VehicleInfo> vehicleInfos, String solutionFilePath,
+                                           Map<String, Integer> packageCount){
         long[][] arcCost = costMatrixGenerator.generateCostMatrix(points);
         for (int i = 1; i < points.size(); i++) {
             points.get(i).setDistanceFromDepot(arcCost[0][i]);

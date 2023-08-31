@@ -11,9 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.logging.Logger;
 
 
@@ -38,11 +36,12 @@ public class ORVRPBackHaulService extends AbstractSimulationStrategyRun implemen
                                      List<VehicleInfo> vehicleInfos){
 
        List<RoutingDetails> points = awbDetailsGenerator.getRouteDetails(lat, lon, radius, maxLimit);
-        return algorithm(points, vehicleInfos, null);
+        return algorithm(points, vehicleInfos, null, new HashMap<>());
     }
 
     @Override
-    public List<RoutingSolution> algorithm(List<RoutingDetails> points, List<VehicleInfo> vehicleInfos, String solutionFilePath){
+    public List<RoutingSolution> algorithm(List<RoutingDetails> points, List<VehicleInfo> vehicleInfos, String solutionFilePath,
+                                           Map<String, Integer> packageCount){
         long[][] arcCost = costMatrixGenerator.generateCostMatrix(points);
         for (int i = 1; i < points.size(); i++) {
             points.get(i).setDistanceFromDepot(arcCost[0][i]);

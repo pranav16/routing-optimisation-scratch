@@ -1,10 +1,7 @@
 package com.gdn.tms.routing.service.impl.algorithms.jsprit;
 
 import com.gdn.tms.routing.enums.JSpritDimensions;
-import com.gdn.tms.routing.pojo.LatLon;
-import com.gdn.tms.routing.pojo.RoutingDetails;
-import com.gdn.tms.routing.pojo.RoutingSolution;
-import com.gdn.tms.routing.pojo.VehicleInfo;
+import com.gdn.tms.routing.pojo.*;
 import com.gdn.tms.routing.service.api.*;
 import com.gdn.tms.routing.service.impl.utils.jsprit.JSpritSolutionAdapter;
 import com.gdn.tms.routing.service.impl.utils.jsprit.JSpritVehicleAdapter;
@@ -59,12 +56,12 @@ public class JSVRPBackHaulService extends AbstractSimulationStrategyRun implemen
     public List<RoutingSolution> run(double lat, double lon, double radius, long maxLimit,
                                      List<VehicleInfo> vehicleInfos){
         List<RoutingDetails> points = awbDetailsGenerator.getRouteDetails(lat, lon, radius, maxLimit);
-        return algorithm(points, vehicleInfos, "");
+        return algorithm(points, vehicleInfos, "", new HashMap<>());
     }
 
     @Override
-    public List<RoutingSolution> algorithm(List<RoutingDetails> points, List<VehicleInfo> vehicleInfos, String solutionFilePath){
-        List<VehicleImpl> vehicles = vehicleAdapter.buildVehiclesOnWeightAndCount(vehicleInfos);
+    public List<RoutingSolution> algorithm(List<RoutingDetails> points, List<VehicleInfo> vehicleInfos, String solutionFilePath, Map<String, Integer> packageCounts){
+        List<VehicleImpl> vehicles = vehicleAdapter.buildVehiclesOnWeightAndCount(vehicleInfos, packageCounts);
         Map<Vehicle, Double> maxDistancePerVehicleMap = new HashMap<>();
         for (Vehicle vehicle: vehicles) {
             Map<String, Object> vehicleProperties = (Map<String, Object>)vehicle.getType().getUserData();
@@ -83,7 +80,9 @@ public class JSVRPBackHaulService extends AbstractSimulationStrategyRun implemen
             services.add(com.graphhopper.jsprit.core.problem.job.Service.Builder.newInstance(point.getIdentifier())
                     .addSizeDimension(JSpritDimensions.WEIGHT_CAPACITY.getIndex(), point.getVolumetricWeight().intValue())
                     .addSizeDimension(JSpritDimensions.DEAD_WEIGHT_CAPACITY.getIndex(), point.getDeadWeight())
+                    .addSizeDimension(JSpritDimensions.PACKAGE_COUNT.getIndex(), 1)
                     .setPriority(point.getPriority())
+                    .setTimeWindow(new com.graphhopper.jsprit.core.problem.solution.route.activity.TimeWindow(0, point.getSlaInMins()))
                     .setLocation(locationBuilder.build()).build());
         }
         BaseRoutingContext context = new BaseRoutingContext();
@@ -121,10 +120,10 @@ public class JSVRPBackHaulService extends AbstractSimulationStrategyRun implemen
         vrpBuilder.setActivityCosts(new VehicleRoutingActivityCosts() {
             @Override
             public double getActivityCost(TourActivity tourActivity, double v, Driver driver, Vehicle vehicle) {
-                if (tourActivity instanceof TourActivity.JobActivity) {
-                    String jobId = ((TourActivity.JobActivity) tourActivity).getJob().getId();
-                    return slaMap.get(jobId);
-                }
+//                if (tourActivity instanceof TourActivity.JobActivity) {
+//                    String jobId = ((TourActivity.JobActivity) tourActivity).getJob().getId();
+//                    return slaMap.get(jobId);
+//                }
                 return 0;
             }
             @Override
@@ -141,7 +140,7 @@ public class JSVRPBackHaulService extends AbstractSimulationStrategyRun implemen
             SolutionPrinter.print(problem, bestSolution, SolutionPrinter.Print.VERBOSE);
             new Plotter(problem, bestSolution).plot(solutionFilePath, solutionFilePath);
         }
-        return solutionAdapter.extractSolution(context, bestSolution);
+        return solutionAdapter.extractSolution(context, bestSolution, problem);
     }
 
     public VehicleRoutingAlgorithm createAlgorithmWithMaxDistanceConstraint(VehicleRoutingProblem vrp, Map<Vehicle, Double> maxDistancePerVehicleMap, Map<String, Long> slaMap) {

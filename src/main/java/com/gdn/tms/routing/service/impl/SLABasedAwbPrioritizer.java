@@ -30,7 +30,7 @@ public class SLABasedAwbPrioritizer implements IAwbPrioritizer {
         return Math.max(priorityRange.getFirst(), priority);
     }
 
-    private Pair<Integer, Integer> getSlaRange(List<RoutingDetails> details){
+    public Pair<Integer, Integer> getSlaRange(List<RoutingDetails> details){
         int minSla = Integer.MAX_VALUE, maxSla = Integer.MIN_VALUE;
         for (int i = 1; i < details.size(); i++) {
             RoutingDetails detail = details.get(i);

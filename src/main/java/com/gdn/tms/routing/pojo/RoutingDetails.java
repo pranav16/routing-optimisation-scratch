@@ -7,8 +7,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.joda.time.DateTime;
 
+import java.util.Comparator;
 import java.util.Date;
 import java.util.Objects;
 
@@ -18,7 +20,7 @@ import java.util.Objects;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class RoutingDetails {
+public class RoutingDetails implements Comparable<RoutingDetails> {
     double lat;
     double lon;
     long slaInMins;
@@ -31,7 +33,6 @@ public class RoutingDetails {
     DateTime bookingTime;
     DateTime sla;
     DateTime etd;
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -48,5 +49,10 @@ public class RoutingDetails {
     @Override
     public int hashCode() {
         return Objects.hash(identifier);
+    }
+
+    @Override
+    public int compareTo(@NotNull RoutingDetails o) {
+        return getBookingTime().compareTo(o.getBookingTime());
     }
 }
